@@ -6,8 +6,7 @@ import random
 st.set_page_config(page_title="数当てサバイバル", page_icon="🎮")
 st.title("🎮 数当てサバイバル：Web版")
 
-# --- 警告メッセージの追加 ---
-# 目立つように赤い枠（warning）で表示します
+# --- 警告メッセージ（ルール説明） ---
 st.warning("⚠️ 数字が近いとマイナス値が高くなる！！得点が０になるとGAME OVER！！")
 
 # --- ペナルティ計算の関数 ---
@@ -35,30 +34,30 @@ st.sidebar.write(f"現在の難易度: **{st.session_state.difficulty[0]}**")
 # --- メイン画面 ---
 st.info(st.session_state.message)
 
-# --- 入力フォーム ---
+# --- 入力フォーム（エンターキー対応） ---
 if not st.session_state.game_over and st.session_state.win_count < 5:
+    # clear_on_submit=True により、送信後に枠内が空になります
     with st.form(key='guess_form', clear_on_submit=True):
-        # ★ value=None にすることで初期状態を空欄にし、placeholderを表示させます
-        guess = st.number_input(
-            "1-100の数字を入力してください", 
-            min_value=1, 
-            max_value=100, 
-            value=None, 
-            placeholder="ここに数字を入力..."
+        # 文字入力として受け取り、後で数字かどうかチェックします
+        user_input = st.text_input(
+            "1-100の数字を入力してください（Enterで回答）", 
+            placeholder="例: 50"
         )
         submit = st.form_submit_button("回答する")
 
     if submit:
-        # 数字が未入力（None）の時の処理
-        if guess is None:
-            st.warning("数字を入力してからボタンを押してください！")
+        # --- 入力チェックロジック ---
+        # 1. 空文字ではないか、2. 数字のみか、3. 1-100の範囲内か
+        if not user_input or not user_input.isdigit() or not (1 <= int(user_input) <= 100):
+            st.error("1～100までの半角数字を入力してください")
         else:
+            guess = int(user_input)
             diff = abs(guess - st.session_state.secret_number)
             
             if diff == 0:
                 st.session_state.win_count += 1
                 st.session_state.score += 100
-                st.session_state.history = []
+                st.session_state.history = [] # 正解で履歴リセット
                 st.session_state.secret_number = random.randint(1, 100)
                 st.session_state.difficulty = random.choice([("難易度大", 100), ("難易度中", 75), ("難易度小", 50)])
                 st.session_state.message = "☆正解！ボーナス+100点！ 次の問題です。"
@@ -68,6 +67,7 @@ if not st.session_state.game_over and st.session_state.win_count < 5:
                 st.session_state.score -= penalty
                 hint = "もっと大きいよ" if guess < st.session_state.secret_number else "もっと小さいよ"
                 
+                # 履歴に追加
                 res_text = f"【{len(st.session_state.history)+1}回目】 {guess} ⇒ {hint} （-{penalty}点）"
                 st.session_state.history.append(res_text)
                 st.session_state.message = f"はずれ！ {hint}"
