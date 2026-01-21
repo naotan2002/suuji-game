@@ -23,9 +23,16 @@ if 'score' not in st.session_state:
     st.session_state.message = "1～100までの数字を当てよう！5回正解でクリア。"
     st.session_state.game_over = False
     st.session_state.history = []
+    
+# ★ ハイスコアの初期化（セッション中に一度だけ実行）
+if 'high_score' not in st.session_state:
+    st.session_state.high_score = 0
 
 # --- サイドパネル（現在のステータス） ---
-st.sidebar.header("ステータス")
+st.sidebar.header("🏆 記録")
+st.sidebar.metric("最高得点", f"{st.session_state.high_score} 点") # ハイスコアを表示
+st.sidebar.divider()
+st.sidebar.header("📊 ステータス")
 st.sidebar.metric("持ち点", f"{st.session_state.score} 点")
 st.sidebar.metric("正解数", f"{st.session_state.win_count} / 5")
 st.sidebar.write(f"現在の難易度: **{st.session_state.difficulty[0]}**")
@@ -43,13 +50,10 @@ if not st.session_state.game_over and st.session_state.win_count < 5:
         submit = st.form_submit_button("回答する")
 
     if submit:
-        # 入力チェック
         if not user_input or not user_input.isdigit() or not (1 <= int(user_input) <= 100):
             st.error("1～100までの半角数字を入力してください")
         else:
-            # ★回答ごとに一律10点マイナス
             st.session_state.score -= 10
-            
             guess = int(user_input)
             diff = abs(guess - st.session_state.secret_number)
             
@@ -59,21 +63,18 @@ if not st.session_state.game_over and st.session_state.win_count < 5:
                 st.session_state.history = []
                 st.session_state.secret_number = random.randint(1, 100)
                 st.session_state.difficulty = random.choice([("難易度大", 100), ("難易度中", 75), ("難易度小", 50)])
-                st.session_state.message = "☆正解！ボーナス+100点！ (回答点-10されましたが+100点ボーナスです)"
+                st.session_state.message = "☆正解！ボーナス+100点！"
                 st.balloons()
             else:
                 penalty = calculate_penalty(diff, st.session_state.difficulty[1])
                 st.session_state.score -= penalty
                 hint = "もっと大きいよ" if guess < st.session_state.secret_number else "もっと小さいよ"
-                
-                # 履歴に回答点とペナルティの内訳を記載
                 res_text = f"【{len(st.session_state.history)+1}回目】 {guess} ⇒ {hint} （回答点-10 ＋ ペナルティ-{penalty}）"
                 st.session_state.history.append(res_text)
                 st.session_state.message = f"はずれ！ {hint}"
 
-            # 点数チェック（10点引いた時点で0以下になる可能性もあるため）
             if st.session_state.score <= 0:
-                st.session_state.score = 0 # マイナス表示にならないよう調整
+                st.session_state.score = 0
                 st.session_state.game_over = True
             
             st.rerun()
@@ -88,12 +89,22 @@ if st.session_state.history:
 # ゲームオーバー・クリア判定
 if st.session_state.game_over:
     st.error(f"GAME OVER... 正解は {st.session_state.secret_number} でした。")
+
 if st.session_state.win_count >= 5:
     st.success(f"MISSION COMPLETE! 最終スコア: {st.session_state.score}点")
-    st.confetti()
+    
+    # ★ 最高得点の更新判定
+    if st.session_state.score > st.session_state.high_score:
+        st.session_state.high_score = st.session_state.score
+        st.warning(f"🎉 新記録達成！最高得点が {st.session_state.high_score} 点に更新されました！")
+    
+    st.balloons()
 
 # リセットボタン
 if st.button("最初からやり直す"):
+    # ハイスコア以外をリセットする
+    keep_high_score = st.session_state.high_score
     for key in list(st.session_state.keys()):
         del st.session_state[key]
+    st.session_state.high_score = keep_high_score # ハイスコアだけ戻す
     st.rerun()
